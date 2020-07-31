@@ -85,30 +85,21 @@ function buildQueryBody(
   statusAgentIDs: string[] | undefined
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Record<string, any> {
-  const filterUnenrolledAgents =
-    unerolledAgentIds && unerolledAgentIds.length > 0
-      ? {
-          must_not: {
-            terms: {
-              'elastic.agent.id': unerolledAgentIds,
-            },
-          },
-        }
-      : null;
-  const filterStatusAgents = statusAgentIDs
-    ? {
-        must: {
-          terms: {
-            'elastic.agent.id': statusAgentIDs,
-          },
-        },
-      }
-    : null;
+  let ignoredAgents: string[] = [];
+  if (unerolledAgentIds) {
+    ignoredAgents = ignoredAgents.concat(unerolledAgentIds);
+  }
+  if (statusAgentIDs) {
+    ignoredAgents = ignoredAgents.concat(statusAgentIDs);
+  }
 
   const idFilter = {
     bool: {
-      ...filterUnenrolledAgents,
-      ...filterStatusAgents,
+      must_not: {
+        terms: {
+          'elastic.agent.id': ignoredAgents,
+        },
+      },
     },
   };
 
@@ -117,7 +108,7 @@ function buildQueryBody(
       esKuery.fromKueryExpression(request.body.filters.kql)
     );
     const q = [];
-    if (filterUnenrolledAgents || filterStatusAgents) {
+    if (ignoredAgents.length) {
       q.push(idFilter);
     }
     q.push({ ...kqlQuery });
@@ -125,7 +116,7 @@ function buildQueryBody(
       bool: { must: q },
     };
   }
-  return filterUnenrolledAgents || filterStatusAgents
+  return ignoredAgents.length
     ? idFilter
     : {
         match_all: {},
