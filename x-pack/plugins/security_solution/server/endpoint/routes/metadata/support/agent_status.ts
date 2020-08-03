@@ -23,13 +23,18 @@ export async function findAgentIDsByStatus(
   status: string[],
   pageSize: number = 1000
 ): Promise<string[]> {
-  const helpers = status.map((s) => STATUS_QUERY_MAP.get(s));
+  /*
+   * Calculate the inverse status, to find agents to rule out
+   */
+  const oppositeStatuses = ['online', 'enrolling', 'offline', 'error', 'unenrolling']
+    .filter((s) => status.indexOf(s) === -1)
+    .map((s) => STATUS_QUERY_MAP.get(s));
   const searchOptions = (pageNum: number) => {
     return {
       page: pageNum,
       perPage: pageSize,
       showInactive: true,
-      kuery: `(fleet-agents.packages : "endpoint" AND (${helpers.join(' OR ')}))`,
+      kuery: `(fleet-agents.packages : "endpoint" AND (${oppositeStatuses.join(' OR ')}))`,
     };
   };
 
